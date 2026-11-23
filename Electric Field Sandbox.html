@@ -1,0 +1,593 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electric Field Sandbox</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  padding:20px 14px;
+  font-family:Arial,sans-serif;
+  color:#1d3045;
+  background:#edf3f9;
+}
+.container{max-width:1000px;margin:auto}
+header{text-align:center;margin-bottom:22px}
+header h1{margin:0 0 8px;color:#1763a5;font-size:29px}
+header p{margin:0;color:#708198;line-height:1.5}
+.panel{
+  background:white;
+  padding:19px;
+  border-radius:15px;
+  margin-bottom:16px;
+  box-shadow:0 5px 20px rgba(30,60,90,.07);
+}
+h2{font-size:18px;margin:0 0 15px}
+canvas{
+  display:block;
+  width:100%;
+  border-radius:11px;
+  background:#f9fbff;
+  border:1px solid #e1e9f2;
+  touch-action:none;
+}
+.toolbar{
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+button{
+  border:0;
+  border-radius:9px;
+  padding:11px 15px;
+  font-size:13px;
+  font-weight:bold;
+  cursor:pointer;
+}
+button:hover{filter:brightness(.95)}
+.positive{background:#ffe7e5;color:#c43e38}
+.negative{background:#e5edff;color:#2858b5}
+.neutral{background:#eaf0f6;color:#40566d}
+.active{background:#176fc0;color:white}
+.controls{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:17px;
+}
+.control label{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  font-weight:bold;
+  margin-bottom:9px;
+}
+.control strong{color:#1763a5}
+input[type=range]{width:100%;accent-color:#176fc0}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.stat{
+  background:#f1f6fc;
+  border-radius:10px;
+  padding:13px;
+}
+.stat span{
+  display:block;
+  font-size:12px;
+  color:#73839a;
+  margin-bottom:7px;
+}
+.stat strong{font-size:19px;color:#1763a5}
+.info{
+  background:#f1f7fc;
+  padding:14px;
+  border-radius:10px;
+  font-size:14px;
+  line-height:1.7;
+}
+.formula{
+  background:#f6f8fc;
+  padding:14px;
+  border-radius:10px;
+  margin-top:10px;
+  font-size:14px;
+  line-height:1.8;
+}
+.formula strong{color:#1763a5}
+.legend{
+  display:flex;
+  gap:17px;
+  flex-wrap:wrap;
+  font-size:13px;
+  margin-top:12px;
+  color:#63758a;
+}
+.dot{
+  display:inline-block;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  margin-right:5px;
+}
+.note{
+  color:#78899b;
+  font-size:12px;
+  line-height:1.6;
+  margin-bottom:0;
+}
+footer{text-align:center;color:#8b99a9;font-size:12px;padding:10px}
+@media(max-width:600px){
+  .controls{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr}
+  header h1{font-size:24px}
+  .panel{padding:15px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>⚡ Electric Field Sandbox</h1>
+  <p>Place electric charges and explore the invisible forces around them.</p>
+</header>
+
+<section class="panel">
+  <h2>Interactive Charge Playground</h2>
+  <canvas id="fieldCanvas" width="950" height="530"></canvas>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#e34c46"></i>Positive charge</span>
+    <span><i class="dot" style="background:#3978dc"></i>Negative charge</span>
+    <span>→ Electric field direction</span>
+  </div>
+
+  <div class="toolbar">
+    <button class="positive" onclick="addCharge(1)">＋ Add Positive</button>
+    <button class="negative" onclick="addCharge(-1)">－ Add Negative</button>
+    <button class="neutral" onclick="removeLast()">Remove Last</button>
+    <button class="neutral" onclick="clearCharges()">Clear All</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Simulation Settings</h2>
+  <div class="controls">
+    <div class="control">
+      <label>Charge Strength <strong id="strengthValue">1.0</strong></label>
+      <input id="strength" type="range" min="0.5" max="5" step="0.5" value="1">
+    </div>
+    <div class="control">
+      <label>Field Arrow Density <strong id="densityValue">Medium</strong></label>
+      <input id="density" type="range" min="1" max="3" step="1" value="2">
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="active" id="fieldToggle" onclick="toggleField()">Field Arrows: ON</button>
+    <button class="active" id="forceToggle" onclick="toggleForce()">Force Vectors: ON</button>
+  </div>
+  <p class="note">Drag charges to reposition them. Select a charge to inspect the electrostatic force acting on it from all other charges.</p>
+</section>
+
+<section class="panel">
+  <h2>Charge Information</h2>
+  <div class="stats">
+    <div class="stat">
+      <span>Total Charges</span>
+      <strong id="totalStat">0</strong>
+    </div>
+    <div class="stat">
+      <span>Positive Charges</span>
+      <strong id="positiveStat">0</strong>
+    </div>
+    <div class="stat">
+      <span>Negative Charges</span>
+      <strong id="negativeStat">0</strong>
+    </div>
+  </div>
+  <div class="info" id="chargeInfo" style="margin-top:13px">
+    Add a charge to begin exploring the electric field.
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Physics Behind the Simulation</h2>
+  <div class="formula">
+    <strong>Coulomb's Law:</strong><br>
+    F = k |q₁q₂| / r²<br><br>
+
+    <strong>Electric Field:</strong><br>
+    E = F / q<br><br>
+
+    <strong>Electric Field of a Point Charge:</strong><br>
+    E = kq / r²<br><br>
+
+    <strong>Superposition Principle:</strong><br>
+    E<sub>total</sub> = E₁ + E₂ + E₃ + ...
+  </div>
+  <p class="note">
+    Red charges are positive and blue charges are negative. Electric field arrows point away from positive charges and toward negative charges. The simulation uses normalized charge units and a simplified visual scale; displayed force magnitudes are illustrative rather than SI-calibrated.
+  </p>
+</section>
+
+</div>
+
+<script>
+const canvas=document.getElementById("fieldCanvas");
+const ctx=canvas.getContext("2d");
+
+let charges=[];
+let selected=null;
+let dragging=null;
+let showField=true;
+let showForce=true;
+let nextId=1;
+
+const strengthInput=document.getElementById("strength");
+const densityInput=document.getElementById("density");
+
+const colors={
+  positive:"#e34c46",
+  negative:"#3978dc"
+};
+
+function addCharge(sign){
+  if(charges.length>=12){
+    showMessage("Maximum of 12 charges allowed.");
+    return;
+  }
+
+  const x=canvas.width/2+(Math.random()-.5)*180;
+  const y=canvas.height/2+(Math.random()-.5)*160;
+
+  const charge={
+    id:nextId++,
+    x:Math.max(45,Math.min(canvas.width-45,x)),
+    y:Math.max(45,Math.min(canvas.height-45,y)),
+    q:sign*Number(strengthInput.value)
+  };
+
+  charges.push(charge);
+  selected=charge.id;
+  update();
+}
+
+function removeLast(){
+  if(!charges.length)return;
+
+  const removed=charges.pop();
+
+  if(selected===removed.id)selected=null;
+  update();
+}
+
+function clearCharges(){
+  charges=[];
+  selected=null;
+  update();
+}
+
+function toggleField(){
+  showField=!showField;
+  const button=document.getElementById("fieldToggle");
+  button.textContent="Field Arrows: "+(showField?"ON":"OFF");
+  button.classList.toggle("active",showField);
+  draw();
+}
+
+function toggleForce(){
+  showForce=!showForce;
+  const button=document.getElementById("forceToggle");
+  button.textContent="Force Vectors: "+(showForce?"ON":"OFF");
+  button.classList.toggle("active",showForce);
+  draw();
+}
+
+function showMessage(message){
+  document.getElementById("chargeInfo").textContent=message;
+}
+
+function getField(x,y,excludeId=null){
+  let ex=0;
+  let ey=0;
+
+  for(const charge of charges){
+    if(charge.id===excludeId)continue;
+
+    const dx=x-charge.x;
+    const dy=y-charge.y;
+    const r2=dx*dx+dy*dy;
+
+    if(r2<100)continue;
+
+    const factor=charge.q/(r2*Math.sqrt(r2));
+
+    ex+=factor*dx;
+    ey+=factor*dy;
+  }
+
+  return {x:ex,y:ey};
+}
+
+function getForce(charge){
+  let fx=0;
+  let fy=0;
+
+  for(const other of charges){
+    if(other.id===charge.id)continue;
+
+    const dx=charge.x-other.x;
+    const dy=charge.y-other.y;
+    const r2=dx*dx+dy*dy;
+
+    if(r2<100)continue;
+
+    const factor=charge.q*other.q/(r2*Math.sqrt(r2));
+
+    fx+=factor*dx;
+    fy+=factor*dy;
+  }
+
+  return {x:fx,y:fy,magnitude:Math.hypot(fx,fy)};
+}
+
+function drawArrow(x,y,dx,dy,color="#6d8ba5"){
+  const length=Math.hypot(dx,dy);
+  if(length<0.00001)return;
+
+  const ux=dx/length;
+  const uy=dy/length;
+  const size=7;
+
+  ctx.strokeStyle=color;
+  ctx.fillStyle=color;
+  ctx.lineWidth=1.5;
+
+  ctx.beginPath();
+  ctx.moveTo(x-ux*5,y-uy*5);
+  ctx.lineTo(x+ux*size,y+uy*size);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x+ux*size,y+uy*size);
+  ctx.lineTo(x+ux*size-uy*size*.65,y+uy*size+ux*size*.65);
+  ctx.lineTo(x+ux*size+uy*size*.65,y+uy*size-ux*size*.65);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawFieldArrows(){
+  const density=Number(densityInput.value);
+  const spacing=density===1?85:density===2?60:42;
+
+  for(let y=spacing/2;y<canvas.height;y+=spacing){
+    for(let x=spacing/2;x<canvas.width;x+=spacing){
+      let near=false;
+
+      for(const charge of charges){
+        if(Math.hypot(x-charge.x,y-charge.y)<35){
+          near=true;
+          break;
+        }
+      }
+
+      if(near)continue;
+
+      const field=getField(x,y);
+      const magnitude=Math.hypot(field.x,field.y);
+
+      if(magnitude<0.000001)continue;
+
+      drawArrow(x,y,field.x,field.y,"#7593ad");
+    }
+  }
+}
+
+function drawForceVectors(){
+  for(const charge of charges){
+    if(charge.id!==selected)continue;
+
+    const force=getForce(charge);
+    if(force.magnitude<0.000001)continue;
+
+    const scale=55/Math.max(force.magnitude,.00001);
+    const dx=force.x*scale;
+    const dy=force.y*scale;
+
+    ctx.strokeStyle="#159b69";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(charge.x,charge.y);
+    ctx.lineTo(charge.x+dx,charge.y+dy);
+    ctx.stroke();
+
+    drawArrow(
+      charge.x+dx,
+      charge.y+dy,
+      dx,
+      dy,
+      "#159b69"
+    );
+
+    ctx.fillStyle="#138257";
+    ctx.font="bold 12px Arial";
+    ctx.fillText("Net Force",charge.x+dx+7,charge.y+dy-8);
+  }
+}
+
+function drawCharges(){
+  for(const charge of charges){
+    const positive=charge.q>0;
+    const color=positive?colors.positive:colors.negative;
+
+    ctx.beginPath();
+    ctx.arc(charge.x,charge.y,18,0,Math.PI*2);
+    ctx.fillStyle=color;
+    ctx.fill();
+
+    ctx.lineWidth=3;
+    ctx.strokeStyle=charge.id===selected?"#172b42":"rgba(255,255,255,.9)";
+    ctx.stroke();
+
+    ctx.fillStyle="#fff";
+    ctx.font="bold 23px Arial";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText(positive?"+":"−",charge.x,charge.y-1);
+
+    ctx.font="bold 11px Arial";
+    ctx.fillText(Math.abs(charge.q).toFixed(1),charge.x,charge.y+29);
+  }
+
+  ctx.textAlign="left";
+  ctx.textBaseline="alphabetic";
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="#f9fbff";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.strokeStyle="#edf1f7";
+  ctx.lineWidth=1;
+
+  for(let x=25;x<canvas.width;x+=25){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x,canvas.height);
+    ctx.stroke();
+  }
+
+  for(let y=25;y<canvas.height;y+=25){
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(canvas.width,y);
+    ctx.stroke();
+  }
+
+  if(showField&&charges.length){
+    drawFieldArrows();
+  }
+
+  if(showForce&&selected!==null){
+    drawForceVectors();
+  }
+
+  drawCharges();
+}
+
+function update(){
+  const positive=charges.filter(c=>c.q>0).length;
+  const negative=charges.filter(c=>c.q<0).length;
+
+  document.getElementById("totalStat").textContent=charges.length;
+  document.getElementById("positiveStat").textContent=positive;
+  document.getElementById("negativeStat").textContent=negative;
+
+  if(selected!==null){
+    const charge=charges.find(c=>c.id===selected);
+
+    if(charge){
+      const force=getForce(charge);
+      const direction=Math.atan2(force.y,force.x)*180/Math.PI;
+
+      document.getElementById("chargeInfo").innerHTML=
+        `<strong>Selected Charge #${charge.id}</strong><br>`+
+        `Type: ${charge.q>0?"Positive":"Negative"}<br>`+
+        `Charge: ${charge.q.toFixed(2)} units<br>`+
+        `Net force: ${force.magnitude.toFixed(5)} normalized units<br>`+
+        `Force direction: ${force.magnitude<0.000001?"Undefined":direction.toFixed(1)+"°"}`;
+    }
+  }else if(charges.length===0){
+    showMessage("Add a charge to begin exploring the electric field.");
+  }else{
+    showMessage("Select a charge to inspect its net electrostatic force.");
+  }
+
+  draw();
+}
+
+function getPointerPosition(event){
+  const rect=canvas.getBoundingClientRect();
+
+  return {
+    x:(event.clientX-rect.left)*canvas.width/rect.width,
+    y:(event.clientY-rect.top)*canvas.height/rect.height
+  };
+}
+
+canvas.addEventListener("pointerdown",event=>{
+  const point=getPointerPosition(event);
+
+  for(let i=charges.length-1;i>=0;i--){
+    const charge=charges[i];
+
+    if(Math.hypot(point.x-charge.x,point.y-charge.y)<23){
+      dragging=charge.id;
+      selected=charge.id;
+      canvas.setPointerCapture(event.pointerId);
+      update();
+      return;
+    }
+  }
+
+  selected=null;
+  update();
+});
+
+canvas.addEventListener("pointermove",event=>{
+  if(dragging===null)return;
+
+  const point=getPointerPosition(event);
+  const charge=charges.find(c=>c.id===dragging);
+
+  if(!charge)return;
+
+  charge.x=Math.max(25,Math.min(canvas.width-25,point.x));
+  charge.y=Math.max(25,Math.min(canvas.height-25,point.y));
+
+  update();
+});
+
+canvas.addEventListener("pointerup",()=>{
+  dragging=null;
+});
+
+canvas.addEventListener("pointercancel",()=>{
+  dragging=null;
+});
+
+strengthInput.addEventListener("input",()=>{
+  const value=Number(strengthInput.value);
+
+  document.getElementById("strengthValue").textContent=value.toFixed(1);
+
+  if(selected!==null){
+    const charge=charges.find(c=>c.id===selected);
+    if(charge){
+      charge.q=Math.sign(charge.q)*value;
+    }
+  }
+
+  update();
+});
+
+densityInput.addEventListener("input",()=>{
+  const value=Number(densityInput.value);
+  document.getElementById("densityValue").textContent=
+    value===1?"Low":value===2?"Medium":"High";
+  draw();
+});
+
+addCharge(1);
+</script>
+</body>
+</html>
